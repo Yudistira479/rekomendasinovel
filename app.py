@@ -1,17 +1,14 @@
 import streamlit as st
 import pandas as pd
-import os
-import pickle
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
 
 # Load dataset
 @st.cache_data
-
 def load_data():
     df = pd.read_csv("novels.csv")
-    return df
+    return df[["title", "authors", "genres", "scored", "popularty", "status"]].dropna()
 
 # Encode categorical features
 def preprocess_data(df):
@@ -23,9 +20,9 @@ def preprocess_data(df):
         label_encoders[col] = le
     return df, label_encoders
 
-# Train Random Forest model for recommendations
+# Train Random Forest model
 def train_model(df):
-    features = ["title", "authors", "genres", "scored", "popularty"]
+    features = ["genres", "scored", "status"]
     target = "popularty"
     X = df[features]
     y = df[target]
@@ -34,37 +31,19 @@ def train_model(df):
     model.fit(X_train, y_train)
     return model
 
-# Make predictions based on user input
+# Make predictions
 def get_recommendations(model, df, label_encoders, user_input):
     input_df = pd.DataFrame([user_input])
     for col in ["genres", "authors", "status"]:
         le = label_encoders[col]
         input_df[col] = le.transform([input_df[col][0]])
-    features = ["title", "authors", "genres", "scored", "popularty"]
+    features = ["genres", "scored", "status"]
     predictions = model.predict(df[features])
-    df["predicted_popularity"] = predictions
+    df["predicted_popularty"] = predictions
     top_novels = df.sort_values(by="predicted_popularty", ascending=False).head(10)
     return top_novels
 
-# Save search history
-def save_history(novels):
-    if os.path.exists("history.pkl"):
-        with open("history.pkl", "rb") as f:
-            history = pickle.load(f)
-    else:
-        history = []
-    history.append(novels)
-    with open("history.pkl", "wb") as f:
-        pickle.dump(history, f)
-
-# Load search history
-def load_history():
-    if os.path.exists("history.pkl"):
-        with open("history.pkl", "rb") as f:
-            return pickle.load(f)
-    return []
-
-# Main App
+# Setup Streamlit App
 st.set_page_config(page_title="Sistem Rekomendasi Novel", layout="wide")
 st.sidebar.title("Navigasi")
 page = st.sidebar.radio("Pilih Halaman", ["Home", "Rekomendasi Novel", "Top 10 Novel"])
@@ -73,49 +52,46 @@ df = load_data()
 processed_df, label_encoders = preprocess_data(df)
 model = train_model(processed_df)
 
+# Inisialisasi session_state untuk riwayat
+if "history" not in st.session_state:
+    st.session_state.history = []
+
 if page == "Home":
     st.title("Beranda - Riwayat Pencarian Rekomendasi Novel")
-    history = load_history()
-    if history:
-        for i, rec in enumerate(history[::-1]):
-            st.subheader(f"Hasil Pencarian #{len(history)-i}")
-            st.dataframe(rec)
+    if st.session_state.history:
+        for i, rec in enumerate(reversed(st.session_state.history)):
+            st.subheader(f"Hasil Pencarian #{len(st.session_state.history) - i}")
+            st.dataframe(rec[["title", "authors", "genres", "scored", "popularty", "status"]])
     else:
         st.info("Belum ada riwayat pencarian.")
 
 elif page == "Rekomendasi Novel":
     st.title("Rekomendasi Novel Berdasarkan Preferensi Anda")
-    genre = st.selectbox("Pilih Genre", df["genre"].unique())
-    author = st.selectbox("Pilih Penulis", df["author"].unique())
+    genre = st.selectbox("Pilih Genre", df["genres"].unique())
+    author = st.selectbox("Pilih Penulis", df["authors"].unique())
     status = st.selectbox("Pilih Status", df["status"].unique())
-    rating = st.slider("Rating", 0.0, 5.0, 3.0, 0.1)
-    views = st.number_input("Jumlah Views", min_value=0, value=1000)
-    likes = st.number_input("Jumlah Likes", min_value=0, value=100)
-    chapters = st.number_input("Jumlah Chapter", min_value=1, value=10)
+    score = st.slider("Skor Rating", 0.0, 5.0, 3.0, 0.1)
 
     if st.button("Dapatkan Rekomendasi"):
         user_input = {
-            "genre": genre,
-            "author": author,
+            "genres": genre,
+            "authors": author,
             "status": status,
-            "rating": rating,
-            "views": views,
-            "likes": likes,
-            "chapter_count": chapters,
+            "scored": score,
         }
         recommendations = get_recommendations(model, processed_df.copy(), label_encoders, user_input)
         st.subheader("10 Rekomendasi Novel Terbaik Untuk Anda")
-        st.dataframe(recommendations)
-        save_history(recommendations)
+        st.dataframe(recommendations[["title", "authors", "genres", "scored", "popularty", "status"]])
+        st.session_state.history.append(recommendations[["title", "authors", "genres", "scored", "popularty", "status"]])
 
 elif page == "Top 10 Novel":
     st.title("Top 10 Novel Berdasarkan Rating dan Genre")
 
-    top_rated = df.sort_values(by="rating", ascending=False).head(10)
-    st.subheader("10 Novel dengan Rating Tertinggi")
-    st.dataframe(top_rated)
+    top_rated = df.sort_values(by="scored", ascending=False).head(10)
+    st.subheader("10 Novel dengan Skor Tertinggi")
+    st.dataframe(top_rated[["title", "authors", "genres", "scored", "popularty", "status"]])
 
-    genre_counts = df["genre"].value_counts().head(10).index
-    top_genre_df = df[df["genre"].isin(genre_counts)]
+    top_genres = df["genres"].value_counts().head(10).index
+    top_genre_df = df[df["genres"].isin(top_genres)]
     st.subheader("10 Novel Genre Terbaik (Genre Terpopuler)")
-    st.dataframe(top_genre_df.head(10))
+    st.dataframe(top_genre_df.head(10)[["title", "authors", "genres", "scored", "popularty", "status"]])
