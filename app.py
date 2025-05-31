@@ -8,7 +8,7 @@ from sklearn.model_selection import train_test_split
 @st.cache_data
 def load_data():
     df = pd.read_csv("novels.csv")
-    required_cols = ["title", "authors", "genres", "scored", "popularty", "status"]
+    required_cols = ["title", "authors", "genres", "score", "popularty", "status"]
     missing_cols = [col for col in required_cols if col not in df.columns]
     if missing_cols:
         st.error(f"Kolom berikut hilang di dataset: {missing_cols}")
@@ -27,7 +27,7 @@ def preprocess_data(df):
 
 # Train Random Forest model
 def train_model(df):
-    features = ["genres", "scored", "status"]
+    features = ["genres", "score", "status"]
     target = "popularty"
     X = df[features]
     y = df[target]
@@ -66,7 +66,7 @@ if page == "Home":
     if st.session_state.history:
         for i, rec in enumerate(reversed(st.session_state.history)):
             st.subheader(f"Hasil Pencarian #{len(st.session_state.history) - i}")
-            st.dataframe(rec[["title", "authors", "genres", "scored", "popularty", "status"]])
+            st.dataframe(rec[["title", "authors", "genres", "score", "popularty", "status"]])
     else:
         st.info("Belum ada riwayat pencarian.")
 
@@ -82,21 +82,21 @@ elif page == "Rekomendasi Novel":
             "genres": genre,
             "authors": author,
             "status": status,
-            "scored": score,
+            "score": score,
         }
         recommendations = get_recommendations(model, processed_df.copy(), label_encoders, user_input)
         st.subheader("10 Rekomendasi Novel Terbaik Untuk Anda")
         st.dataframe(recommendations[["title", "authors", "genres", "scored", "popularty", "status"]])
-        st.session_state.history.append(recommendations[["title", "authors", "genres", "scored", "popularty", "status"]])
+        st.session_state.history.append(recommendations[["title", "authors", "genres", "score", "popularty", "status"]])
 
 elif page == "Top 10 Novel":
     st.title("Top 10 Novel Berdasarkan Rating dan Genre")
 
     top_rated = df.sort_values(by="scored", ascending=False).head(10)
     st.subheader("10 Novel dengan Skor Tertinggi")
-    st.dataframe(top_rated[["title", "authors", "genres", "scored", "popularty", "status"]])
+    st.dataframe(top_rated[["title", "authors", "genres", "score", "popularty", "status"]])
 
     top_genres = df["genres"].value_counts().head(10).index
     top_genre_df = df[df["genres"].isin(top_genres)]
     st.subheader("10 Novel Genre Terbaik (Genre Terpopuler)")
-    st.dataframe(top_genre_df.head(10)[["title", "authors", "genres", "scored", "popularty", "status"]])
+    st.dataframe(top_genre_df.head(10)[["title", "authors", "genres", "score", "popularty", "status"]])
