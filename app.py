@@ -17,7 +17,7 @@ def load_data():
 def preprocess_data(df):
     df = df.copy()
     label_encoders = {}
-    for col in ["genre", "author", "status"]:
+    for col in ["genres", "authors", "status"]:
         le = LabelEncoder()
         df[col] = le.fit_transform(df[col].astype(str))
         label_encoders[col] = le
@@ -25,8 +25,8 @@ def preprocess_data(df):
 
 # Train Random Forest model for recommendations
 def train_model(df):
-    features = ["genre", "rating", "views", "likes", "chapter_count"]
-    target = "popularity"
+    features = ["title", "authors", "genres", "scored", "popularty"]
+    target = "popularty"
     X = df[features]
     y = df[target]
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
@@ -37,13 +37,13 @@ def train_model(df):
 # Make predictions based on user input
 def get_recommendations(model, df, label_encoders, user_input):
     input_df = pd.DataFrame([user_input])
-    for col in ["genre", "author", "status"]:
+    for col in ["genres", "authors", "status"]:
         le = label_encoders[col]
         input_df[col] = le.transform([input_df[col][0]])
-    features = ["genre", "rating", "views", "likes", "chapter_count"]
+    features = ["title", "authors", "genres", "scored", "popularty"]
     predictions = model.predict(df[features])
     df["predicted_popularity"] = predictions
-    top_novels = df.sort_values(by="predicted_popularity", ascending=False).head(10)
+    top_novels = df.sort_values(by="predicted_popularty", ascending=False).head(10)
     return top_novels
 
 # Save search history
