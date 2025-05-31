@@ -8,7 +8,12 @@ from sklearn.model_selection import train_test_split
 @st.cache_data
 def load_data():
     df = pd.read_csv("novels.csv")
-    return df[["title", "authors", "genres", "scored", "popularty", "status"]].dropna()
+    required_cols = ["title", "authors", "genres", "scored", "popularty", "status"]
+    missing_cols = [col for col in required_cols if col not in df.columns]
+    if missing_cols:
+        st.error(f"Kolom berikut hilang di dataset: {missing_cols}")
+        st.stop()
+    return df[required_cols].dropna()
 
 # Encode categorical features
 def preprocess_data(df):
